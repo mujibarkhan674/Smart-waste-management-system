@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
 
+Error.stackTraceLimit = 50
+
 function deploymentUrls(): string[] {
   const urls: string[] = []
   if (process.env.BETTER_AUTH_URL) urls.push(process.env.BETTER_AUTH_URL)
@@ -40,7 +42,10 @@ export const auth = betterAuth({
   },
   onAPIError: {
     // Log the full error (with stack) so production failures are diagnosable.
-    onError: (error) => console.error('[auth] API error:', error),
+    onError: (error) => {
+      // Write the raw stack directly (Next.js hides library frames in console output).
+      process.stderr.write(`[auth] API error: ${(error as Error)?.stack ?? String(error)}\n`)
+    },
   },
 })
 
