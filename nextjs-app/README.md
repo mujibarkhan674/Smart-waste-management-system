@@ -195,16 +195,31 @@ All responses are JSON: success `{ "data": … }`, failure `{ "error": "message"
 
 ## Deploying to Vercel
 
-1. Create a PostgreSQL database (Neon, Supabase or Vercel Postgres) and copy its connection string.
-2. In the Vercel project → *Settings → Environment Variables* add at least:
-   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (your production URL, e.g. `https://your-app.vercel.app`), `CLASSIFIER_PROVIDER`, `APP_TIMEZONE`.
-3. Run the migrations against the production database once from your computer:
-   `DATABASE_URL="<production url>" pnpm db:migrate` (and optionally `pnpm db:seed`).
-   Alternatively set the Vercel build command to `pnpm db:migrate && pnpm build`.
-4. Deploy (push to the connected Git repository or run `vercel --prod`).
-5. Sign in with the seeded admin (then change its password) or promote your own account with `pnpm user:role`.
+The live deployment of this project uses **Vercel + Neon (Postgres)** with these settings:
 
-**Classifier on Vercel:** the recommended setting is `CLASSIFIER_PROVIDER=anthropic` with `ANTHROPIC_API_KEY`. The local CLIP provider makes the function ≈60 MB (only the Linux x64 ONNX runtime is bundled) plus a ~90 MB model download into `/tmp` on each cold start, which is slow and close to serverless size/time limits; it has **not** been tested on Vercel. `clip-local` is ideal for local demos and for self-hosting on a normal server/VM (`pnpm build && pnpm start`).
+| Setting | Value |
+|---|---|
+| Root Directory | `nextjs-app` |
+| Node.js version | 24.x |
+| Build command | `pnpm db:migrate && pnpm build` (migrations run automatically on every deploy) |
+| Function region | Singapore `sin1` (set in `vercel.json`, next to the Neon database) |
+| Production branch | the branch you deploy from (`nextjs-app` while developing, `main` after merging) |
+
+Steps for a fresh deployment:
+
+1. Import the GitHub repository in Vercel and set **Root Directory** to `nextjs-app`.
+2. In the project → **Storage** → **Create Database** → **Neon**, choose the Singapore region and connect it to the project. This adds `DATABASE_URL` (and `DATABASE_URL_UNPOOLED`, used for migrations) automatically.
+3. In **Settings → Environment Variables** add:
+   `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `CLASSIFIER_PROVIDER=clip-local`, `APP_TIMEZONE=Asia/Kolkata`, `MAX_UPLOAD_MB=4`, `ONNXRUNTIME_NODE_INSTALL=skip`, and — before the first seed — `SEED_ADMIN_PASSWORD`, `SEED_STAFF_PASSWORD`, `SEED_USER_PASSWORD` (strong values; never rely on the default in public).
+   `BETTER_AUTH_URL` is optional on Vercel: the production URL is detected automatically.
+4. For the **first** deploy only, set the build command to `pnpm db:migrate && pnpm db:seed && pnpm build`, then change it back to `pnpm db:migrate && pnpm build` so later deploys don't re-seed.
+5. Deploy by pushing to the production branch (or `vercel --prod`).
+
+**Classifier on Vercel (tested):** `clip-local` works on Vercel. The first classification after a cold start takes ~7 s (the ~90 MB model is downloaded into `/tmp`), later ones ~1 s. The classify function is ~105 MB, below Vercel's 250 MB limit, because only the Linux x64 runtime files are bundled (`outputFileTracingIncludes` in `next.config.mjs`). Two details make this work:
+- `.npmrc` sets `node-linker=hoisted`: Vercel refuses function packages with files inside symlinked folders, which is how pnpm normally stores `onnxruntime-node` and `sharp`.
+- `ONNXRUNTIME_NODE_INSTALL=skip` stops `onnxruntime-node` downloading its large GPU/CUDA libraries on Linux build servers.
+
+`CLASSIFIER_PROVIDER=anthropic` (with `ANTHROPIC_API_KEY`) remains an alternative if you prefer an external vision API.
 
 Uploads are capped at 4 MB because Vercel limits request bodies to 4.5 MB.
 
