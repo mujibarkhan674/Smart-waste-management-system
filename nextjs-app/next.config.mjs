@@ -17,6 +17,9 @@ const nextConfig = {
       'node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/{package.json,dist/**,lib/**}',
       // CPU runtime only — never the optional CUDA/GPU libraries.
       'node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v*/linux/x64/{libonnxruntime.so.1,onnxruntime_binding.node}',
+      // sharp (image decoding) loads libvips dynamically; the tracer misses it too.
+      'node_modules/.pnpm/@img+sharp-linux-x64@*/node_modules/@img/sharp-linux-x64/**',
+      'node_modules/.pnpm/@img+sharp-libvips-linux-x64@*/node_modules/@img/sharp-libvips-linux-x64/**',
     ],
   },
   outputFileTracingExcludes: {
