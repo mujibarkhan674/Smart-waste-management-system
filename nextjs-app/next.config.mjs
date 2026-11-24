@@ -15,7 +15,8 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/classify': [
       'node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/{package.json,dist/**,lib/**}',
-      'node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v*/linux/x64/**',
+      // CPU runtime only — never the optional CUDA/GPU libraries.
+      'node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v*/linux/x64/{libonnxruntime.so.1,onnxruntime_binding.node}',
     ],
   },
   outputFileTracingExcludes: {
